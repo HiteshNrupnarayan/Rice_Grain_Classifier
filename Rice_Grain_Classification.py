@@ -1,25 +1,9 @@
-# -------------------------------------------------------------------------
-# Rice Grain Classification - Streamlit Web App (with Google Drive Download)
-# -------------------------------------------------------------------------
-# This script creates a web app that downloads its dataset from Google Drive,
-# then trains, evaluates, and uses models to classify rice grains.
-#
-# To Run This App:
-# 1. Make sure you have Python installed.
-# 2. Install the required libraries:
-#    pip install streamlit numpy opencv-python-headless Pillow scikit-learn gdown
-# 3. Save this code as a Python file (e.g., `app.py`).
-# 4. In Google Drive, zip your dataset folder (containing 'Train' and 'Test'
-#    subfolders) and get a shareable link.
-# 5. Get the FILE_ID from the link (e.g., in .../d/FILE_ID/view, copy the FILE_ID part).
-# 6. Replace "YOUR_GOOGLE_DRIVE_FILE_ID" in the script below with your ID.
-# 7. Open your terminal and run: streamlit run app.py
-# -------------------------------------------------------------------------
-import traceback
+
 import streamlit as st
 import numpy as np
 import cv2
 from PIL import Image
+import time
 import os
 import joblib
 from sklearn.svm import SVC
@@ -29,8 +13,6 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import pandas as pd
 import plotly.express as px
-import gdown
-import zipfile
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -61,8 +43,8 @@ st.markdown("""
     }
     .stButton>button:hover { background-color: #1e293b; }
     .card {
-        background-color: #F7F3E9;
-        border: 1px solid #E7E0D4;
+        background-color: #F7F3E9; /* Changed card color to a soft beige */
+        border: 1px solid #E7E0D4;   /* Adjusted border to complement new color */
         border-radius: 0.75rem;
         padding: 1rem;
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -77,62 +59,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- NEW: Google Drive Download Configuration ---
-# ⚠️ ACTION REQUIRED: Replace with your Google Drive file ID.
-#    The link should be 'Anyone with the link can view'.
-GOOGLE_DRIVE_FILE_ID = "1ujP3FVAiGbpp7WLlzY0vNkCJSRzqEyvD"
-DATASET_ZIP_PATH = "dataset.zip"
-DATA_DIR = "data"
-
 # --- GLOBAL VARIABLES & PATHS ---
-TRAIN_PATH = os.path.join(DATA_DIR, 'Train')
-TEST_PATH = os.path.join(DATA_DIR, 'Test')
+DATASET_PATH = "E:\Download\Rice Project\Rice Project\Dataset" 
+TRAIN_PATH = os.path.join(DATASET_PATH, 'Train')
+TEST_PATH = os.path.join(DATASET_PATH, 'Test')
 MODEL_SAVE_PATH = "best_rice_classifier.pkl"
-
-# --- NEW: Function to Download and Unzip Data ---
-# --- NEW: Function to Download and Unzip Data (Corrected) ---
-# --- NEW: Function to Download and Unzip Data (DEBUG VERSION) ---
-# --- NEW: Function to Download and Unzip Data (DEBUG VERSION) ---
-def download_and_unzip_dataset(file_id, zip_path, dest_dir):
-    """Downloads and unzips the dataset, with extra debugging prints."""
-    st.info("Running in DEBUG mode to diagnose dataset issue.")
-
-    # --- DEBUG: Print current working directory ---
-    st.write(f"**Debug Info:** Script is running in directory: `{os.getcwd()}`")
-
-    if os.path.exists(dest_dir):
-        st.info(f"✅ Dataset folder '{dest_dir}' already exists.")
-        # --- DEBUG: List contents of existing data folder ---
-        st.write(f"**Debug Info:** Contents of '{dest_dir}': `{os.listdir(dest_dir)}`")
-        return
-
-    st.info("📥 Dataset not found locally. Starting download from Google Drive...")
-    try:
-        # Download the file from Google Drive
-        st.write(f"**Debug Info:** Attempting to download from Google Drive ID: {file_id}")
-        gdown.download(id=file_id, output=zip_path, quiet=False)
-        st.success("Download complete!")
-
-        # Unzip the file into the specified destination directory
-        st.info(f"Unzipping '{zip_path}' into '{dest_dir}/' folder...")
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(dest_dir)
-        st.success("Dataset successfully unzipped!")
-
-        # --- DEBUG: List the contents of the new data folder ---
-        if os.path.exists(dest_dir):
-            st.write(f"**Debug Info:** Contents of newly created '{dest_dir}' folder: `{os.listdir(dest_dir)}`")
-        else:
-            st.error(f"**Debug Info:** The '{dest_dir}' folder was NOT created after unzipping.")
-
-        # Clean up the downloaded zip file
-        st.write(f"**Debug Info:** Removing temporary file: {zip_path}")
-        os.remove(zip_path)
-
-    except Exception as e:
-        # --- DEBUG: Print the full error traceback ---
-        st.error(f"An exception occurred during download/unzip. See details below.")
-        st.code(traceback.format_exc()) # This provides the full error stack trace
 
 # --- CORE ML FUNCTIONS ---
 
@@ -153,7 +84,7 @@ def load_and_preprocess_images(directory, classes, class_to_label, image_size=(5
         for img_name in image_files:
             img_path = os.path.join(class_path, img_name)
             try:
-                img = cv2.imread(img_path, 0)
+                img = cv2.imread(img_path, 0) # Read as grayscale
                 if img is None: continue
                 img_resized = cv2.resize(img, image_size)
                 X.append(img_resized.flatten())
@@ -212,6 +143,7 @@ def get_prediction(image_bytes):
         st.error("Model not found. Please train a model on the 'Training Dashboard' page first.")
         return None, None
 
+    # Preprocess the image
     nparr = np.frombuffer(image_bytes, np.uint8)
     img_cv = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
     if img_cv is None:
@@ -220,11 +152,13 @@ def get_prediction(image_bytes):
     
     img_resized = cv2.resize(img_cv, (50, 50))
     img_flattened = img_resized.flatten()
-    img_normalized = (img_flattened / 255.0).reshape(1, -1)
+    img_normalized = (img_flattened / 255.0).reshape(1, -1) # Reshape for prediction
 
+    # Get prediction and confidence
     predicted_index = model.predict(img_normalized)[0]
     confidence = model.predict_proba(img_normalized).max()
     
+    # We need class names to map the index back to a label
     classes = sorted(os.listdir(TRAIN_PATH))
     predicted_class = classes[predicted_index]
     
@@ -241,30 +175,58 @@ def home_page():
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.header("Project Overview")
     st.write("""
-        This application uses a machine learning model to classify rice grains. The dataset includes 
-        **Arborio, Basmati, Ipsala, Jasmine and Karacadag**, five different varieties of rice often 
-        grown in Turkey. The model is trained on a total of 5,000 images.
+        Rice, which is among the most widely produced grain products worldwide, has many genetic varieties. 
+        These varieties are separated from each other due to some of their features. These are usually 
+        features such as texture, shape, and color. With these features that distinguish rice varieties, 
+        it is possible to classify and evaluate the quality of seeds. 
+        
+        In this study, **Arborio, Basmati, Ipsala, Jasmine and Karacadag**, which are five different varieties 
+        of rice often grown in Turkey, were used. A total of **5,000 grain images**, 1,000 from each of these 
+        varieties, are included in the dataset.
     """)
     st.markdown('</div>', unsafe_allow_html=True)
+
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.header("Get Started")
-    st.write("Navigate to the **Training Dashboard** to download the dataset and train the models, then use the **Real-Time Classifier** to test your own images.")
+    st.header("Dataset at a Glance")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Images", "5,000")
+    col2.metric("Rice Varieties", "5")
+    col3.metric("Images per Variety", "1,000")
     st.markdown('</div>', unsafe_allow_html=True)
 
-def training_dashboard_page():
-    st.title("⚙️ Training Dashboard")
-    
-    # MODIFIED: Trigger dataset download and unzip at the top of the page
-    download_and_unzip_dataset(GOOGLE_DRIVE_FILE_ID, DATASET_ZIP_PATH, DATA_DIR)
-    
     st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.header("Classified Rice Varieties")
+    st.write("This application is trained to identify the following five major rice varieties:")
+    cols = st.columns(5)
+    varieties = ["Arborio", "Basmati", "Ipsala", "Jasmine", "Karacadag"]
+    for col, variety in zip(cols, varieties):
+        with col:
+            st.info(f"**{variety}**")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.header("Get Started")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("🚀 Train a Model")
+        st.write("Navigate to the **Training Dashboard** to load the dataset, train four different ML models, and compare their performance in real-time.")
+    with col2:
+        st.subheader("🔎 Classify an Image")
+        st.write("Once a model is trained, go to the **Real-Time Classifier** to upload a new image and get an instant prediction.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def training_dashboard_page():
+    st.title("🚀 Training Dashboard")
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    
     st.header("Train and Evaluate Models")
-    st.write("Click the button below to load the dataset, train classification models, and evaluate their performance. The best model will be saved automatically.")
+    st.write("Click the button below to load your dataset from the `/data` folder, train the classification models, and evaluate their performance. The best model will be saved automatically.")
 
     if st.button("Start Training Process"):
         with st.status("Step 1: Loading Data...", expanded=True) as status:
             if not os.path.isdir(TRAIN_PATH) or not os.path.isdir(TEST_PATH):
-                st.error(f"Dataset not found! Please ensure the Google Drive download was successful and the '{DATA_DIR}' folder exists.")
+                st.error(f"Dataset not found! Please create a '{DATASET_PATH}' folder and place 'Train' and 'Test' subfolders inside.")
                 status.update(label="Data Loading Failed!", state="error", expanded=False)
                 return
 
@@ -283,7 +245,7 @@ def training_dashboard_page():
             st.session_state['class_info'] = (classes, class_to_label)
             st.session_state['dataset'] = (X_train, Y_train, X_test, Y_test)
             
-            st.success(f"Loaded {len(X_train)} training and {len(X_test)} testing images.")
+            st.success(f"Loaded {len(X_train)} training and {len(X_test)} testing images across {len(classes)} classes.")
             status.update(label="Data Loaded Successfully!", state="complete", expanded=False)
 
         with st.status("Step 2: Training Models...", expanded=True) as status:
@@ -295,7 +257,7 @@ def training_dashboard_page():
 
         with st.status("Step 3: Saving Best Model...", expanded=True) as status:
             joblib.dump(best_model_info['model'], MODEL_SAVE_PATH)
-            st.success(f"Best model ({best_model_info['name']}) saved to `{MODEL_SAVE_PATH}` with an accuracy of {best_model_info['accuracy']:.2%}.")
+            st.success(f"Best model ({best_model_info['name']}) saved successfully to `{MODEL_SAVE_PATH}` with an accuracy of {best_model_info['accuracy']:.2%}.")
             status.update(label="Model Saved!", state="complete", expanded=False)
 
     st.markdown('</div>', unsafe_allow_html=True)
@@ -321,8 +283,9 @@ def training_dashboard_page():
         
         st.markdown('</div>', unsafe_allow_html=True)
 
+
 def classifier_page():
-    st.title("📷 Real-Time Classifier")
+    st.title("🔎 Real-Time Classifier")
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.header("Upload an Image to Classify")
     
