@@ -91,31 +91,47 @@ MODEL_SAVE_PATH = "best_rice_classifier.pkl"
 
 # --- NEW: Function to Download and Unzip Data ---
 # --- NEW: Function to Download and Unzip Data (Corrected) ---
+# --- NEW: Function to Download and Unzip Data (DEBUG VERSION) ---
 def download_and_unzip_dataset(file_id, zip_path, dest_dir):
-    """Downloads and unzips the dataset from Google Drive if not already present."""
+    """Downloads and unzips the dataset, with extra debugging prints."""
+    st.info("Running in DEBUG mode to diagnose dataset issue.")
+
+    # --- DEBUG: Print current working directory ---
+    st.write(f"**Debug Info:** Script is running in directory: `{os.getcwd()}`")
+
     if os.path.exists(dest_dir):
-        st.info("✅ Dataset already exists locally.")
+        st.info(f"✅ Dataset folder '{dest_dir}' already exists.")
+        # --- DEBUG: List contents of existing data folder ---
+        st.write(f"**Debug Info:** Contents of '{dest_dir}': `{os.listdir(dest_dir)}`")
         return
 
     st.info("📥 Dataset not found locally. Starting download from Google Drive...")
     try:
         # Download the file from Google Drive
+        st.write(f"**Debug Info:** Attempting to download from Google Drive ID: {file_id}")
         gdown.download(id=file_id, output=zip_path, quiet=False)
         st.success("Download complete!")
 
         # Unzip the file into the specified destination directory
-        st.info(f"Unzipping dataset into '{dest_dir}/' folder...")
+        st.info(f"Unzipping '{zip_path}' into '{dest_dir}/' folder...")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            # This is the corrected line:
             zip_ref.extractall(dest_dir)
         st.success("Dataset successfully unzipped!")
 
+        # --- DEBUG: List the contents of the new data folder ---
+        if os.path.exists(dest_dir):
+            st.write(f"**Debug Info:** Contents of newly created '{dest_dir}' folder: `{os.listdir(dest_dir)}`")
+        else:
+            st.error(f"**Debug Info:** The '{dest_dir}' folder was NOT created after unzipping.")
+
         # Clean up the downloaded zip file
+        st.write(f"**Debug Info:** Removing temporary file: {zip_path}")
         os.remove(zip_path)
 
     except Exception as e:
-        st.error(f"An error occurred during download/unzip: {e}")
-        st.warning("Please ensure the Google Drive File ID is correct and the link is public.")
+        # --- DEBUG: Print the full error traceback ---
+        st.error(f"An exception occurred during download/unzip. See details below.")
+        st.code(traceback.format_exc()) # This provides the full error stack trace
 
 # --- CORE ML FUNCTIONS ---
 
