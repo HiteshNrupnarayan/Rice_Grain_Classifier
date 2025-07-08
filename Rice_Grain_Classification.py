@@ -90,6 +90,7 @@ TEST_PATH = os.path.join(DATA_DIR, 'Test')
 MODEL_SAVE_PATH = "best_rice_classifier.pkl"
 
 # --- NEW: Function to Download and Unzip Data ---
+# --- NEW: Function to Download and Unzip Data (Corrected) ---
 def download_and_unzip_dataset(file_id, zip_path, dest_dir):
     """Downloads and unzips the dataset from Google Drive if not already present."""
     if os.path.exists(dest_dir):
@@ -102,13 +103,14 @@ def download_and_unzip_dataset(file_id, zip_path, dest_dir):
         gdown.download(id=file_id, output=zip_path, quiet=False)
         st.success("Download complete!")
 
-        # Unzip the file
-        st.info("unzipping dataset...")
+        # Unzip the file into the specified destination directory
+        st.info(f"Unzipping dataset into '{dest_dir}/' folder...")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall()
+            # This is the corrected line:
+            zip_ref.extractall(dest_dir)
         st.success("Dataset successfully unzipped!")
 
-        # Clean up the zip file
+        # Clean up the downloaded zip file
         os.remove(zip_path)
 
     except Exception as e:
