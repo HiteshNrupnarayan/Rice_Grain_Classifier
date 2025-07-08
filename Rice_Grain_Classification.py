@@ -15,7 +15,7 @@
 # 6. Replace "YOUR_GOOGLE_DRIVE_FILE_ID" in the script below with your ID.
 # 7. Open your terminal and run: streamlit run app.py
 # -------------------------------------------------------------------------
-
+import traceback
 import streamlit as st
 import numpy as np
 import cv2
@@ -91,6 +91,7 @@ MODEL_SAVE_PATH = "best_rice_classifier.pkl"
 
 # --- NEW: Function to Download and Unzip Data ---
 # --- NEW: Function to Download and Unzip Data (Corrected) ---
+# --- NEW: Function to Download and Unzip Data (DEBUG VERSION) ---
 # --- NEW: Function to Download and Unzip Data (DEBUG VERSION) ---
 def download_and_unzip_dataset(file_id, zip_path, dest_dir):
     """Downloads and unzips the dataset, with extra debugging prints."""
