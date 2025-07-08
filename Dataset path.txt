@@ -1,0 +1,6 @@
+import kagglehub
+
+# Download latest version
+path = kagglehub.dataset_download("muratkokludataset/rice-image-dataset")
+
+print("Path to dataset files:", path)
