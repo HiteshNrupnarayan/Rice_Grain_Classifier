@@ -1,4 +1,3 @@
-traceback
 streamlit
 numpy
 opencv-python-headless
